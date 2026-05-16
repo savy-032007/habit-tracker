@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StreakFlow – Habit Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #161b25;
+      --card: #1c2333;
+      --border: #2a3347;
+      --accent: #f97316;
+      --accent2: #fb923c;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --text: #e8edf5;
+      --muted: #7a8aaa;
+      --glow: rgba(249,115,22,0.18);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(249,115,22,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(249,115,22,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 0 20px; position: relative; z-index: 1; }
+
+    /* ── HEADER ── */
+    header {
+      padding: 28px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.6rem;
+      letter-spacing: -0.5px;
+    }
+    .logo span { color: var(--accent); }
+
+    .header-right { display: flex; align-items: center; gap: 12px; }
+
+    #aws-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 12px;
+    }
+    #aws-status .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--yellow);
+      animation: blink 2s infinite;
+    }
+    #aws-status.connected .dot { background: var(--green); animation: none; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* ── CONFIG PANEL ── */
+    .config-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin: 24px 0 0;
+      display: none;
+    }
+    .config-panel.open { display: block; animation: slideDown 0.2s ease; }
+    @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+
+    .config-panel h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media(max-width:600px){ .config-grid { grid-template-columns: 1fr; } }
+
+    .config-field label {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .config-field input {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      padding: 9px 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .config-field input:focus { border-color: var(--accent); }
+
+    .config-actions { margin-top: 14px; display: flex; gap: 10px; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      padding: 10px 20px;
+      font-size: 0.88rem;
+    }
+    .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 10px 18px;
+      font-size: 0.88rem;
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-icon {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      width: 38px; height: 38px;
+      border-radius: 10px;
+      font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-icon:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── STATS ROW ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin: 24px 0;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .stat-card:hover::after { opacity: 1; }
+
+    .stat-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+    .stat-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .stat-sub { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── ADD HABIT ── */
+    .add-section {
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+    }
+    .add-section h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+      color: var(--text);
+    }
+
+    .add-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .add-row input {
+      flex: 1;
+      min-width: 180px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .add-row input:focus { border-color: var(--accent); }
+    .add-row input::placeholder { color: var(--muted); }
+
+    .emoji-picker { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .emoji-opt {
+      width: 34px; height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      cursor: pointer;
+      font-size: 1.1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .emoji-opt:hover, .emoji-opt.selected {
+      border-color: var(--accent);
+      background: var(--glow);
+    }
+
+    /* ── HABITS LIST ── */
+    .habits-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .habits-header h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .today-date {
+      font-size: 0.78rem;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+    }
+
+    #habits-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .habit-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: all 0.25s;
+      animation: fadeIn 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+    .habit-card.done {
+      border-color: rgba(34,197,94,0.3);
+      background: rgba(34,197,94,0.05);
+    }
+    .habit-card.done::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: var(--green);
+      border-radius: 3px 0 0 3px;
+    }
+
+    .habit-emoji {
+      font-size: 1.8rem;
+      width: 48px; height: 48px;
+      background: var(--surface);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .habit-info { flex: 1; min-width: 0; }
+    .habit-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .habit-card.done .habit-name { text-decoration: line-through; color: var(--muted); }
+
+    .habit-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+    .streak-badge {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--glow);
+      border: 1px solid rgba(249,115,22,0.3);
+      border-radius: 20px;
+      padding: 2px 9px;
+    }
+    .streak-badge.hot { color: #ff4500; border-color: rgba(255,69,0,0.4); background: rgba(255,69,0,0.1); }
+
+    .week-dots { display: flex; gap: 4px; }
+    .dot-day {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+    .dot-day.done { background: var(--green); }
+    .dot-day.today { border: 2px solid var(--accent); }
+
+    .habit-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+    .check-btn {
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .check-btn:hover { border-color: var(--green); color: var(--green); transform: scale(1.1); }
+    .habit-card.done .check-btn {
+      background: var(--green);
+      border-color: var(--green);
+      color: #fff;
+    }
+
+    .delete-btn {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .delete-btn:hover { border-color: var(--red); color: var(--red); }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--muted);
+    }
+    .empty-state .big-emoji { font-size: 3.5rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 0.95rem; }
+
+    /* ── NOTIFICATION PANEL ── */
+    .notify-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin-top: 20px;
+    }
+    .notify-panel h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .notify-panel h2 .badge {
+      font-size: 0.65rem;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .notify-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+    .notify-row input {
+      flex: 1;
+      min-width: 200px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .notify-row input:focus { border-color: var(--accent); }
+    .notify-row input::placeholder { color: var(--muted); }
+
+    .notify-hint {
+      font-size: 0.73rem;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+    .notify-hint a { color: var(--accent); text-decoration: none; }
+    .notify-hint a:hover { text-decoration: underline; }
+
+    /* ── TOAST ── */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 9999;
+    }
+
+    .toast {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      min-width: 260px;
+      max-width: 340px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .toast.success { border-left: 3px solid var(--green); }
+    .toast.error { border-left: 3px solid var(--red); }
+    .toast.info { border-left: 3px solid var(--accent); }
+
+    @keyframes toastIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes toastOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(20px)} }
+
+    .toast-icon { font-size: 1.2rem; flex-shrink: 0; }
+    .toast-body { flex: 1; }
+    .toast-title { font-weight: 600; font-size: 0.88rem; margin-bottom: 2px; }
+    .toast-msg { font-size: 0.78rem; color: var(--muted); }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 32px 0 24px;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+    footer span { color: var(--accent); }
+
+    /* Responsive */
+    @media(max-width:600px) {
+      .stats-row { grid-template-columns: 1fr 1fr; }
+      .stats-row .stat-card:last-child { grid-column: span 2; }
+      .habit-card { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">Streak<span>Flow</span></div>
+    <div class="header-right">
+      <div id="aws-status">
+        <div class="dot"></div>
+        <span id="aws-status-text">Local Mode</span>
+      </div>
+      <button class="btn-icon" id="config-btn" title="AWS Settings">⚙️</button>
+    </div>
+  </header>
+
+  <!-- AWS CONFIG PANEL -->
+  <div class="config-panel" id="config-panel">
+    <h3>⚡ AWS Configuration</h3>
+    <div class="config-grid">
+      <div class="config-field">
+        <label>API Gateway URL</label>
+        <input type="text" id="cfg-api-url" placeholder="https://xxxx.execute-api.region.amazonaws.com/prod" />
+      </div>
+      <div class="config-field">
+        <label>S3 Bucket Name</label>
+        <input type="text" id="cfg-bucket" placeholder="my-habit-tracker-bucket" />
+      </div>
+      <div class="config-field">
+        <label>SNS Topic ARN (for email alerts)</label>
+        <input type="text" id="cfg-sns" placeholder="arn:aws:sns:region:account-id:HabitAlerts" />
+      </div>
+      <div class="config-field">
+        <label>Your User ID (any unique name)</label>
+        <input type="text" id="cfg-userid" placeholder="student123" />
+      </div>
+    </div>
+    <div class="config-actions">
+      <button class="btn btn-primary" onclick="saveConfig()">💾 Save & Connect</button>
+      <button class="btn btn-ghost" onclick="testConnection()">🔌 Test Connection</button>
+      <button class="btn btn-ghost" onclick="toggleConfig()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- STATS ROW -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Total Habits</div>
+      <div class="stat-value" id="stat-total">0</div>
+      <div class="stat-sub">being tracked</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Done Today</div>
+      <div class="stat-value" id="stat-done" style="color: var(--green)">0</div>
+      <div class="stat-sub">keep it up!</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Best Streak</div>
+      <div class="stat-value" id="stat-streak">0</div>
+      <div class="stat-sub">days in a row 🔥</div>
+    </div>
+  </div>
+
+  <!-- ADD HABIT -->
+  <div class="add-section">
+    <h2>+ Add New Habit</h2>
+    <div class="add-row">
+      <input type="text" id="new-habit-name" placeholder="e.g. Drink 2L water, Read 20 pages…" maxlength="60" />
+      <button class="btn btn-primary" onclick="addHabit()">Add Habit</button>
+    </div>
+    <div class="emoji-picker" id="emoji-picker">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <!-- HABITS LIST -->
+  <div class="habits-header">
+    <h2>Today's Habits</h2>
+    <div class="today-date" id="today-date"></div>
+  </div>
+
+  <div id="habits-list">
+    <!-- filled by JS -->
+  </div>
+
+  <!-- NOTIFICATIONS -->
+  <div class="notify-panel">
+    <h2>
+      🔔 Email Notifications
+      <span class="badge">AWS SNS</span>
+    </h2>
+    <div class="notify-row">
+      <input type="email" id="notify-email" placeholder="your@email.com" />
+      <button class="btn btn-primary" onclick="subscribeEmail()">Subscribe</button>
+      <button class="btn btn-ghost" onclick="sendTestNotification()">Send Test 🧪</button>
+    </div>
+    <p class="notify-hint">
+      Enter your email to get daily habit reminders via <strong>AWS SNS</strong>.
+      You'll get an email confirmation first — make sure to click it!
+      <br/>AWS SNS sends real emails via Amazon's servers.
+      <a href="#" onclick="return false;">Learn more in the setup guide ↗</a>
+    </p>
+  </div>
+
+  <footer>
+    Built with ❤️ using <span>HTML + CSS + JS</span> &amp; <span>AWS (Lambda · DynamoDB · S3 · SNS · API Gateway)</span>
+  </footer>
+
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ═══════════════════════════════════════════
+//  CONFIG & STATE
+// ═══════════════════════════════════════════
+const EMOJIS = ['💧','📚','🏃','🧘','💪','🥗','😴','✍️','🎸','🌿','🧹','💊','📝','🎯','🧠','☀️'];
+
+let config = JSON.parse(localStorage.getItem('sf_config') || '{}');
+let habits = JSON.parse(localStorage.getItem('sf_habits') || '[]');
+let selectedEmoji = '🎯';
+
+const todayKey = () => new Date().toISOString().split('T')[0]; // e.g. "2025-05-16"
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+function init() {
+  // Show today's date
+  const d = new Date();
+  document.getElementById('today-date').textContent =
+    d.toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long' });
+
+  // Render emoji picker
+  const picker = document.getElementById('emoji-picker');
+  EMOJIS.forEach(e => {
+    const btn = document.createElement('div');
+    btn.className = 'emoji-opt' + (e === selectedEmoji ? ' selected' : '');
+    btn.textContent = e;
+    btn.onclick = () => { selectedEmoji = e; document.querySelectorAll('.emoji-opt').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); };
+    picker.appendChild(btn);
+  });
+
+  // Load saved config into fields
+  if (config.apiUrl) document.getElementById('cfg-api-url').value = config.apiUrl;
+  if (config.bucket) document.getElementById('cfg-bucket').value = config.bucket;
+  if (config.sns)    document.getElementById('cfg-sns').value    = config.sns;
+  if (config.userId) document.getElementById('cfg-userid').value = config.userId;
+
+  updateStatus();
+  render();
+}
+
+// ═══════════════════════════════════════════
+//  CONFIG PANEL
+// ═══════════════════════════════════════════
+function toggleConfig() {
+  document.getElementById('config-panel').classList.toggle('open');
+  document.getElementById('config-btn').textContent = document.getElementById('config-panel').classList.contains('open') ? '✖️' : '⚙️';
+}
+document.getElementById('config-btn').onclick = toggleConfig;
+
+function saveConfig() {
+  config = {
+    apiUrl: document.getElementById('cfg-api-url').value.trim().replace(/\/$/, ''),
+    bucket: document.getElementById('cfg-bucket').value.trim(),
+    sns:    document.getElementById('cfg-sns').value.trim(),
+    userId: document.getElementById('cfg-userid').value.trim() || 'user1',
+  };
+  localStorage.setItem('sf_config', JSON.stringify(config));
+  updateStatus();
+  toggleConfig();
+  toast('success', '✅ Config Saved!', 'AWS settings saved locally.');
+
+  // Try to load habits from DynamoDB
+  if (config.apiUrl) loadFromAWS();
+}
+
+async function testConnection() {
+  if (!config.apiUrl) { toast('error','❌ No API URL', 'Please enter your API Gateway URL first.'); return; }
+  toast('info','🔌 Testing...','Pinging your AWS API Gateway');
+  try {
+    const r = await fetch(`${config.apiUrl}/habits?userId=${config.userId || 'test'}`, { method:'GET' });
+    if (r.ok) toast('success','✅ Connected!','AWS API Gateway is responding correctly.');
+    else toast('error','⚠️ Error '+r.status, 'API returned an error. Check Lambda logs.');
+  } catch(e) {
+    toast('error','❌ Failed', 'Cannot reach API. Check your URL and CORS settings.');
+  }
+}
+
+function updateStatus() {
+  const el = document.getElementById('aws-status');
+  const txt = document.getElementById('aws-status-text');
+  if (config.apiUrl) {
+    el.classList.add('connected');
+    txt.textContent = 'AWS Connected';
+  } else {
+    el.classList.remove('connected');
+    txt.textContent = 'Local Mode';
+  }
+}
+
+// ═══════════════════════════════════════════
+//  HABITS CRUD
+// ═══════════════════════════════════════════
+function addHabit() {
+  const nameEl = document.getElementById('new-habit-name');
+  const name = nameEl.value.trim();
+  if (!name) { toast('error','Oops!','Please type a habit name first.'); return; }
+
+  const habit = {
+    id: Date.now().toString(),
+    name,
+    emoji: selectedEmoji,
+    streak: 0,
+    bestStreak: 0,
+    history: {},   // { "YYYY-MM-DD": true }
+    createdAt: new Date().toISOString(),
+  };
+
+  habits.push(habit);
+  save();
+  nameEl.value = '';
+  toast('success','🎉 Habit Added!', `"${name}" is now being tracked.`);
+
+  if (config.apiUrl) syncHabitToAWS(habit);
+}
+
+function toggleDone(id) {
+  const habit = habits.find(h => h.id === id);
+  if (!habit) return;
+  const today = todayKey();
+  const wasDone = !!habit.history[today];
+
+  if (wasDone) {
+    delete habit.history[today];
+  } else {
+    habit.history[today] = true;
+  }
+
+  // Recalculate streak
+  habit.streak = calcStreak(habit.history);
+  if (habit.streak > habit.bestStreak) habit.bestStreak = habit.streak;
+
+  save();
+
+  if (!wasDone) {
+    toast('success', `${habit.emoji} Done!`, `"${habit.name}" marked complete!`);
+    if (config.apiUrl) syncHabitToAWS(habit);
+
+    // Streak milestones
+    if (habit.streak === 7)  toast('info','🔥 7-Day Streak!', `Amazing! Keep going with "${habit.name}"!`);
+    if (habit.streak === 30) toast('info','🏆 30-Day Streak!', `You're on fire with "${habit.name}"!`);
+  }
+}
+
+function deleteHabit(id) {
+  const habit = habits.find(h => h.id === id);
+  if (!habit) return;
+  if (!confirm(`Delete "${habit.name}"? This cannot be undone.`)) return;
+  habits = habits.filter(h => h.id !== id);
+  save();
+  toast('info','🗑️ Deleted', `"${habit.name}" removed.`);
+
+  if (config.apiUrl) deleteFromAWS(id);
+}
+
+function calcStreak(history) {
+  let streak = 0;
+  const d = new Date();
+  while (true) {
+    const key = d.toISOString().split('T')[0];
+    if (history[key]) { streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  return streak;
+}
+
+function getLast7Days() {
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  return days;
+}
+
+// ═══════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════
+function render() {
+  const list = document.getElementById('habits-list');
+  const today = todayKey();
+  const last7 = getLast7Days();
+
+  if (habits.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="big-emoji">🌱</div>
+        <p>No habits yet. Add your first one above!</p>
+      </div>`;
+    updateStats();
+    return;
+  }
+
+  list.innerHTML = '';
+  habits.forEach(h => {
+    const done = !!h.history[today];
+    const card = document.createElement('div');
+    card.className = 'habit-card' + (done ? ' done' : '');
+
+    const dotHtml = last7.map((d,i) =>
+      `<div class="dot-day${h.history[d]?' done':''} ${i===6?'today':''}"></div>`
+    ).join('');
+
+    const isHot = h.streak >= 7;
+
+    card.innerHTML = `
+      <div class="habit-emoji">${h.emoji}</div>
+      <div class="habit-info">
+        <div class="habit-name">${h.name}</div>
+        <div class="habit-meta">
+          <div class="streak-badge ${isHot?'hot':''}">🔥 ${h.streak} day${h.streak!==1?'s':''}</div>
+          <div class="week-dots">${dotHtml}</div>
+        </div>
+      </div>
+      <div class="habit-actions">
+        <button class="check-btn" onclick="toggleDone('${h.id}')" title="${done?'Unmark':'Mark done'}">
+          ${done ? '✓' : '○'}
+        </button>
+        <button class="delete-btn" onclick="deleteHabit('${h.id}')" title="Delete">🗑</button>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  updateStats();
+}
+
+function updateStats() {
+  const today = todayKey();
+  const total = habits.length;
+  const done = habits.filter(h => h.history[today]).length;
+  const best = habits.reduce((m,h) => Math.max(m, h.bestStreak||h.streak||0), 0);
+  document.getElementById('stat-total').textContent  = total;
+  document.getElementById('stat-done').textContent   = done;
+  document.getElementById('stat-streak').textContent = best;
+}
+
+// ═══════════════════════════════════════════
+//  STORAGE
+// ═══════════════════════════════════════════
+function save() {
+  localStorage.setItem('sf_habits', JSON.stringify(habits));
+  render();
+}
+
+// ═══════════════════════════════════════════
+//  AWS API CALLS
+// ═══════════════════════════════════════════
+async function loadFromAWS() {
+  if (!config.apiUrl) return;
+  try {
+    const r = await fetch(`${config.apiUrl}/habits?userId=${config.userId}`);
+    if (!r.ok) return;
+    const data = await r.json();
+    if (Array.isArray(data) && data.length > 0) {
+      habits = data;
+      save();
+      toast('info','☁️ Synced from AWS', 'Your habits were loaded from DynamoDB!');
+    }
+  } catch(e) { console.warn('AWS load failed:', e); }
+}
+
+async function syncHabitToAWS(habit) {
+  if (!config.apiUrl) return;
+  try {
+    await fetch(`${config.apiUrl}/habits`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: config.userId, habit }),
+    });
+  } catch(e) { console.warn('AWS sync failed:', e); }
+}
+
+async function deleteFromAWS(id) {
+  if (!config.apiUrl) return;
+  try {
+    await fetch(`${config.apiUrl}/habits/${id}?userId=${config.userId}`, { method: 'DELETE' });
+  } catch(e) { console.warn('AWS delete failed:', e); }
+}
+
+// ═══════════════════════════════════════════
+//  NOTIFICATIONS (SNS via Lambda)
+// ═══════════════════════════════════════════
+async function subscribeEmail() {
+  const email = document.getElementById('notify-email').value.trim();
+  if (!email || !email.includes('@')) { toast('error','Invalid Email','Please enter a valid email address.'); return; }
+  if (!config.apiUrl) { toast('error','Not Connected','Set up your AWS API URL first in ⚙️ Settings.'); return; }
+
+  try {
+    const r = await fetch(`${config.apiUrl}/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ email, userId: config.userId }),
+    });
+    if (r.ok) {
+      toast('success','📧 Check your email!','Confirm the subscription email from AWS SNS.');
+    } else {
+      toast('error','Failed','Could not subscribe. Check your Lambda/SNS setup.');
+    }
+  } catch(e) {
+    toast('error','Error', 'Network error. Is your API URL correct?');
+  }
+}
+
+async function sendTestNotification() {
+  if (!config.apiUrl) { toast('error','Not Connected','Set up your AWS API URL first.'); return; }
+  try {
+    const today = todayKey();
+    const done = habits.filter(h => h.history[today]).length;
+    const total = habits.length;
+    await fetch(`${config.apiUrl}/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        userId: config.userId,
+        message: `StreakFlow Test: You've completed ${done}/${total} habits today! Keep it up! 🔥`
+      }),
+    });
+    toast('success','📤 Notification Sent!','Check your subscribed email inbox.');
+  } catch(e) {
+    toast('error','Error','Could not send notification.');
+  }
+}
+
+// ═══════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════
+function toast(type, title, msg) {
+  const icons = { success:'✅', error:'❌', info:'ℹ️' };
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<div class="toast-icon">${icons[type]||'📌'}</div>
+    <div class="toast-body"><div class="toast-title">${title}</div><div class="toast-msg">${msg}</div></div>`;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ═══════════════════════════════════════════
+//  KEYBOARD SHORTCUT
+// ═══════════════════════════════════════════
+document.getElementById('new-habit-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addHabit();
+});
+
+// ═══════════════════════════════════════════
+//  START
+// ═══════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
